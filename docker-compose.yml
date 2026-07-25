@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: pharmagen_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pharmagen}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secure_pharma_password_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-pharmagen_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pharmagen} -d ${POSTGRES_DB:-pharmagen_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: pharmagen_redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: pharmagen_backend
+    restart: always
+    env_file:
+      - .env.example
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-pharmagen}:${POSTGRES_PASSWORD:-secure_pharma_password_2026}@db:5432/${POSTGRES_DB:-pharmagen_db}
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: pharmagen_frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.11.3
+    container_name: pharmagen_mlflow
+    restart: always
+    ports:
+      - "5000:5000"
+    command: mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///mlflow.db --default-artifact-root /mlflow/artifacts
+    volumes:
+      - mlflow_data:/mlflow
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: pharmagen_prometheus
+    restart: always
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana:10.4.1
+    container_name: pharmagen_grafana
+    restart: always
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:
+  mlflow_data:

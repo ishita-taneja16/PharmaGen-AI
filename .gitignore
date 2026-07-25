@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.sqlite3
+.pytest_cache/
+.mypy_cache/
+
+# Virtual Environments
+venv/
+backend/venv/
+.venv/
+
+# Environment
+.env
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# Build
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# ML / Vector DB
+chroma_db_store/
+mlruns/
+
+# Misc
+coverage/
