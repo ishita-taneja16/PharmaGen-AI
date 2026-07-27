@@ -45,11 +45,11 @@ def build_pharmagen_agent_graph():
         }
     )
 
-    workflow.add_edge("ResearchAgent", "SupervisorAgent")
-    workflow.add_edge("StatisticsAgent", "SupervisorAgent")
-    workflow.add_edge("MLAgent", "SupervisorAgent")
-    workflow.add_edge("SQLAgent", "SupervisorAgent")
-    workflow.add_edge("ComplianceAgent", "SupervisorAgent")
+    workflow.add_edge("ResearchAgent", END)
+    workflow.add_edge("StatisticsAgent", END)
+    workflow.add_edge("MLAgent", END)
+    workflow.add_edge("SQLAgent", END)
+    workflow.add_edge("ComplianceAgent", END)
     workflow.add_edge("ReportAgent", END)
 
     return workflow.compile()

@@ -40,3 +40,13 @@ mlruns/
 
 # Misc
 coverage/
+
+# Runtime Data
+backend/uploads/
+backend/downloads/
+backend/catboost_info/
+
+# Generated files
+*.csv
+*.pdf
+*.pkl

@@ -9,13 +9,16 @@ const api = axios.create({
 });
 
 // Request Interceptor: Attach JWT Access Token
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('pharmagen_access_token');
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-}, (error) => Promise.reject(error));
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('pharmagen_access_token');
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 // Response Interceptor: Automatic Refresh Token Handling
 api.interceptors.response.use(
@@ -30,15 +33,17 @@ api.interceptors.response.use(
         try {
           const res = await axios.post('/api/v1/auth/refresh', { refresh_token: refreshToken });
           const { access_token, refresh_token } = res.data;
-          
+
           localStorage.setItem('pharmagen_access_token', access_token);
           localStorage.setItem('pharmagen_refresh_token', refresh_token);
-          
+
           originalRequest.headers.Authorization = `Bearer ${access_token}`;
           return api(originalRequest);
         } catch (refreshErr) {
           useAuthStore.getState().logout();
         }
+      } else {
+        useAuthStore.getState().logout();
       }
     }
     return Promise.reject(error);
@@ -46,7 +51,7 @@ api.interceptors.response.use(
 );
 
 // Auth Endpoints
-export const loginApi = async (username: string, password: str) => {
+export const loginApi = async (username: string, password: string) => {
   const formData = new URLSearchParams();
   formData.append('username', username);
   formData.append('password', password);
@@ -98,6 +103,11 @@ export const downloadPptxReport = async () => {
 };
 
 // Domain APIs
+export const getDashboardSummary = async () => {
+  const response = await api.get('/dashboard/summary');
+  return response.data;
+};
+
 export const searchPapers = async (query: string) => {
   const response = await api.post('/papers/search', { query, top_k: 5 });
   return response.data;
@@ -110,9 +120,37 @@ export const uploadPaper = async (formData: FormData) => {
   return response.data;
 };
 
-export const ingestCSV = async (formData: FormData) => {
+export const getPaperStatus = async (paperId: string) => {
+  const response = await api.get(`/papers/${paperId}/status`);
+  return response.data;
+};
+
+export const getPaperDetail = async (paperId: string) => {
+  const response = await api.get(`/papers/${paperId}`);
+  return response.data;
+};
+
+export const listPapers = async () => {
+  const response = await api.get('/papers');
+  return response.data;
+};
+
+export const ingestCSV = async (formData: FormData, onUploadProgress?: (progressEvent: any) => void) => {
   const response = await api.post('/analytics/ingest-csv', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress
+  });
+  return response.data;
+};
+
+export const getDatasetProfile = async (datasetId: string) => {
+  const response = await api.get(`/analytics/${datasetId}/profile`);
+  return response.data;
+};
+
+export const cleanDatasetApi = async (datasetId: string, imputeStrategy: string = 'median', removeOutliers: boolean = true) => {
+  const response = await api.post(`/analytics/${datasetId}/clean`, null, {
+    params: { impute_strategy: imputeStrategy, remove_outliers: removeOutliers }
   });
   return response.data;
 };
@@ -137,8 +175,36 @@ export const trainMLModel = async (datasetId: string, modelType: string, targetC
   return response.data;
 };
 
-export const queryTextToSQL = async (prompt: string) => {
-  const response = await api.post('/sql/query', { prompt });
+export const compareMLModels = async (datasetId: string, targetCol: string, taskType: string = 'regression') => {
+  const response = await api.post('/ml/compare', {
+    dataset_id: datasetId,
+    target_column: targetCol,
+    task_type: taskType,
+  });
+  return response.data;
+};
+
+export const queryTextToSQL = async (prompt: string, datasetId?: string | null) => {
+  const response = await api.post('/sql/query', { 
+    prompt,
+    dataset_id: datasetId || null
+  });
+  return response.data;
+};
+
+export const createExperimentApi = async (data: {
+  dataset_id?: string | null;
+  title: string;
+  formulation_code: string;
+  batch_number: string;
+  parameters?: any;
+}) => {
+  const response = await api.post('/experiments/create', data);
+  return response.data;
+};
+
+export const addExperimentLogsApi = async (experimentId: string, logs: any[]) => {
+  const response = await api.post(`/experiments/${experimentId}/logs`, { logs });
   return response.data;
 };
 

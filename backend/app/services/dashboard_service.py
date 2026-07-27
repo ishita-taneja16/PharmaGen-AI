@@ -1,5 +1,6 @@
+import uuid
 from datetime import datetime, timezone
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.domain.models import ScientificPaper, Dataset, Experiment, MLModel, ComplianceReport, AuditLog, User
@@ -10,103 +11,107 @@ class DashboardService:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_dashboard_summary() -> DashboardSummaryResponse:
+    async def get_dashboard_summary(self, user_id: uuid.UUID, user_name: str = "Current User") -> DashboardSummaryResponse:
         """
-        Aggregates operational metrics across all 7 platform domains.
+        Aggregates user-specific operational metrics for the authenticated user.
+        No hardcoded clamps or fake numbers.
         """
-        # Execute Count Queries
-        paper_count_res = await self.session.execute(select(func.count(ScientificPaper.id)))
+        # 1. Count User Papers
+        paper_count_res = await self.session.execute(
+            select(func.count(ScientificPaper.id)).where(ScientificPaper.user_id == user_id)
+        )
         paper_count = paper_count_res.scalar() or 0
 
-        dataset_count_res = await self.session.execute(select(func.count(Dataset.id)))
+        # 2. Count User Datasets
+        dataset_count_res = await self.session.execute(
+            select(func.count(Dataset.id)).where(Dataset.user_id == user_id)
+        )
         dataset_count = dataset_count_res.scalar() or 0
 
-        exp_count_res = await self.session.execute(select(func.count(Experiment.id)))
+        # 3. Count User Experiments
+        exp_count_res = await self.session.execute(
+            select(func.count(Experiment.id)).where(Experiment.user_id == user_id)
+        )
         exp_count = exp_count_res.scalar() or 0
 
-        model_count_res = await self.session.execute(select(func.count(MLModel.id)))
+        # 4. Count User ML Models
+        model_count_res = await self.session.execute(
+            select(func.count(MLModel.id)).where(MLModel.user_id == user_id)
+        )
         model_count = model_count_res.scalar() or 0
 
-        # Compute Averages
-        avg_yield_res = await self.session.execute(select(func.avg(Experiment.yield_percentage)))
-        avg_yield = float(avg_yield_res.scalar() or 88.45)
-
-        # Compliance Rate Calculation
-        compliant_count_res = await self.session.execute(
-            select(func.count(ComplianceReport.id)).where(ComplianceReport.overall_status == "COMPLIANT")
+        # 5. Count & Average User Compliance Reports
+        comp_count_res = await self.session.execute(
+            select(func.count(ComplianceReport.id)).where(ComplianceReport.user_id == user_id)
         )
-        compliant_count = compliant_count_res.scalar() or 0
+        comp_count = comp_count_res.scalar() or 0
 
-        total_reports_res = await self.session.execute(select(func.count(ComplianceReport.id)))
-        total_reports = total_reports_res.scalar() or 0
+        avg_compliance_res = await self.session.execute(
+            select(func.avg(ComplianceReport.compliance_score)).where(ComplianceReport.user_id == user_id)
+        )
+        avg_comp = avg_compliance_res.scalar()
+        overall_compliance_rate = round(float(avg_comp), 2) if avg_comp is not None else None
 
-        compliance_rate = round((compliant_count / total_reports * 100), 2) if total_reports > 0 else 92.5
+        # 6. Average Experiment Yield
+        avg_yield_res = await self.session.execute(
+            select(func.avg(Experiment.yield_percentage)).where(Experiment.user_id == user_id)
+        )
+        avg_yield_val = avg_yield_res.scalar()
+        avg_yield = round(float(avg_yield_val), 2) if avg_yield_val is not None else None
 
-        # Format Metrics
+        # Format User Metrics
         metrics = DashboardMetrics(
-            total_papers=max(paper_count, 14),
-            total_datasets=max(dataset_count, 8),
-            total_experiments=max(exp_count, 142),
-            total_ml_models=max(model_count, 12),
-            avg_yield_percentage=round(avg_yield, 2),
-            avg_model_r2_score=0.934,
-            overall_compliance_rate=compliance_rate
+            total_papers=paper_count,
+            total_datasets=dataset_count,
+            total_experiments=exp_count,
+            total_ml_models=model_count,
+            total_compliance_reports=comp_count,
+            avg_yield_percentage=avg_yield,
+            avg_model_r2_score=None,
+            overall_compliance_rate=overall_compliance_rate
         )
 
-        # Yield Trend Data
-        yield_trend = [
-          {"formulation": "F-101", "avg_yield": 82.4, "batch_count": 24},
-          {"formulation": "F-102", "avg_yield": 91.2, "batch_count": 36},
-          {"formulation": "F-103", "avg_yield": 87.5, "batch_count": 18},
-          {"formulation": "F-201", "avg_yield": 94.8, "batch_count": 42},
-          {"formulation": "F-305", "avg_yield": 89.8, "batch_count": 22},
-        ]
+        # 7. Dynamic Compliance Distribution
+        comp_dist_stmt = select(
+            ComplianceReport.overall_status, func.count(ComplianceReport.id)
+        ).where(ComplianceReport.user_id == user_id).group_by(ComplianceReport.overall_status)
+        comp_dist_res = await self.session.execute(comp_dist_stmt)
+        compliance_distribution = {status: count for status, count in comp_dist_res.all()}
 
-        # Model Performance Overview
+        # 8. User Model Performance Overview
+        models_stmt = select(MLModel).where(MLModel.user_id == user_id).order_by(MLModel.trained_at.desc()).limit(5)
+        models_res = await self.session.execute(models_stmt)
+        user_models = models_res.scalars().all()
         model_performance = [
-          {"model": "XGBoost Yield Regressor", "r2_score": 0.934, "rmse": 1.14},
-          {"model": "LightGBM Batch Quality", "r2_score": 0.918, "rmse": 1.28},
-          {"model": "CatBoost Failure Forecasting", "r2_score": 0.895, "rmse": 1.42},
+            {
+                "model": m.model_name,
+                "r2_score": m.metrics.get("r2_score", 0.0) if m.metrics else 0.0,
+                "rmse": m.metrics.get("rmse", 0.0) if m.metrics else 0.0
+            }
+            for m in user_models
         ]
 
-        # Compliance Distribution
-        compliance_distribution = {
-          "COMPLIANT": 84,
-          "WARNING": 12,
-          "NON_COMPLIANT": 4
-        }
-
-        # Recent Activities Stream
+        # 9. User Audit Trail Recent Activity
+        audit_stmt = select(AuditLog).where(AuditLog.user_id == user_id).order_by(AuditLog.timestamp.desc()).limit(5)
+        audit_res = await self.session.execute(audit_stmt)
+        user_audits = audit_res.scalars().all()
         recent_activities = [
             RecentActivityItem(
-                id="act_1",
-                title="XGBoost Yield Model Trained",
-                activity_type="ML_TRAINING",
-                user_name="Dr. Eleanor Vance",
-                timestamp=datetime.now(timezone.utc),
+                id=str(a.id),
+                title=f"{a.action} on {a.entity_type}",
+                activity_type=a.action,
+                user_name=user_name,
+                timestamp=a.timestamp,
                 status="SUCCESS"
-            ),
-            RecentActivityItem(
-                id="act_2",
-                title="Paper Uploaded: Synthesis of API X-402",
-                activity_type="PAPER_INDEX",
-                user_name="Dr. Marcus Brody",
-                timestamp=datetime.now(timezone.utc),
-                status="COMPLETED"
-            ),
-            RecentActivityItem(
-                id="act_3",
-                title="SOP-MFG-088 Protocol Compliance Verified",
-                activity_type="COMPLIANCE_AUDIT",
-                user_name="Auditor Sarah Jenkins",
-                timestamp=datetime.now(timezone.utc),
-                status="WARNING"
             )
+            for a in user_audits
         ]
 
         return DashboardSummaryResponse(
             metrics=metrics,
-            yield_trend=yield_trend,
+            papers_over_time=[],
+            experiments_over_time=[],
+            yield_trend=[],
             model_performance=model_performance,
             compliance_distribution=compliance_distribution,
             recent_activity=recent_activities

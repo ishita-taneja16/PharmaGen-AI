@@ -14,4 +14,4 @@ async def get_dashboard_summary(
     db: AsyncSession = Depends(get_db)
 ):
     dashboard_service = DashboardService(db)
-    return await dashboard_service.get_dashboard_summary()
+    return await dashboard_service.get_dashboard_summary(user_id=current_user.id, user_name=current_user.full_name or current_user.username)

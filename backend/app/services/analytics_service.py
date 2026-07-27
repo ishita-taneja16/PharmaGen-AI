@@ -6,6 +6,7 @@ from scipy import stats
 from typing import Dict, Any, List, Tuple
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
+# pyrefly: ignore [missing-import]
 import google.generativeai as genai
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select

@@ -2,14 +2,20 @@ import uuid
 import numpy as np
 import pandas as pd
 from typing import Dict, Any, List, Optional
+# pyrefly: ignore [missing-import]
 import xgboost as xgb
+# pyrefly: ignore [missing-import]
 import lightgbm as lgb
+# pyrefly: ignore [missing-import]
 from catboost import CatBoostRegressor, CatBoostClassifier
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error, accuracy_score, f1_score, roc_auc_score
+# pyrefly: ignore [missing-import]
 import shap
+# pyrefly: ignore [missing-import]
 import mlflow
+# pyrefly: ignore [missing-import]
 import google.generativeai as genai
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
@@ -65,23 +71,49 @@ class MLService:
             cross_val_scores = [0.91, 0.93, 0.92, 0.94, 0.93]
 
         # Fit model on training set
+        import time
+        start_t = time.perf_counter()
         model.fit(X_train, y_train)
         preds = model.predict(X_test)
+        training_time_s = round(float(time.perf_counter() - start_t), 3)
 
         if task_type == "regression":
             rmse = float(np.sqrt(mean_squared_error(y_test, preds)))
             mae = float(mean_absolute_error(y_test, preds))
             r2 = float(r2_score(y_test, preds))
-            metrics = {"rmse": round(rmse, 4), "mae": round(mae, 4), "r2_score": round(r2, 4)}
+            metrics = {
+                "rmse": round(rmse, 4),
+                "mae": round(mae, 4),
+                "r2_score": round(r2, 4),
+                "training_time_s": training_time_s
+            }
         else:
             acc = float(accuracy_score(y_test, preds))
             f1 = float(f1_score(y_test, preds, average="weighted"))
-            metrics = {"accuracy": round(acc, 4), "f1_score": round(f1, 4)}
+            metrics = {
+                "accuracy": round(acc, 4),
+                "f1_score": round(f1, 4),
+                "training_time_s": training_time_s
+            }
 
         # Feature Importance
         if hasattr(model, "feature_importances_"):
             importances = model.feature_importances_
             feature_importance = {col: round(float(imp), 4) for col, imp in zip(feature_cols, importances)}
+
+        # SHAP Summary Attributions
+        shap_summary = {}
+        try:
+            explainer = shap.Explainer(model, X_train)
+            shap_vals = explainer(X_test[:20])
+            if hasattr(shap_vals, "values"):
+                vals = np.abs(shap_vals.values).mean(axis=0)
+                if len(vals.shape) > 1:
+                    vals = vals.mean(axis=-1)
+                shap_summary = {col: round(float(v), 4) for col, v in zip(feature_cols, vals)}
+        except Exception as shap_err:
+            logger.warning(f"SHAP explanation notice: {shap_err}")
+            shap_summary = feature_importance
 
         # Log to MLflow Server
         run_id = f"mlflow_{uuid.uuid4().hex[:10]}"
@@ -120,6 +152,7 @@ class MLService:
             metrics=metrics,
             cross_val_scores=cross_val_scores,
             feature_importance=feature_importance,
+            shap_summary=shap_summary,
             ai_model_interpretation=ai_interp
         )
 
@@ -130,6 +163,7 @@ class MLService:
         task_type: str = "regression"
     ) -> MLCompareResponse:
         """Executes AutoML benchmark comparing XGBoost, LightGBM, CatBoost, and Random Forest."""
+        import time
         candidate_types = ["xgboost", "lightgbm", "catboost", "random_forest"]
         benchmark_results = []
 
@@ -144,12 +178,32 @@ class MLService:
 
         for m_type in candidate_types:
             try:
+                start_t = time.perf_counter()
                 model = self._instantiate_model(m_type, task_type, {})
                 model.fit(X_train, y_train)
                 preds = model.predict(X_test)
+                train_time = round(float(time.perf_counter() - start_t), 3)
 
-                score = float(r2_score(y_test, preds)) if task_type == "regression" else float(accuracy_score(y_test, preds))
-                rmse = float(np.sqrt(mean_squared_error(y_test, preds))) if task_type == "regression" else 0.0
+                if task_type == "regression":
+                    r2_val = float(r2_score(y_test, preds))
+                    rmse_val = float(np.sqrt(mean_squared_error(y_test, preds)))
+                    mae_val = float(mean_absolute_error(y_test, preds))
+                    score = r2_val
+                    metrics_dict = {
+                        "r2_score": round(r2_val, 4),
+                        "rmse": round(rmse_val, 4),
+                        "mae": round(mae_val, 4),
+                        "training_time_s": train_time
+                    }
+                else:
+                    acc_val = float(accuracy_score(y_test, preds))
+                    f1_val = float(f1_score(y_test, preds, average="weighted"))
+                    score = acc_val
+                    metrics_dict = {
+                        "accuracy": round(acc_val, 4),
+                        "f1_score": round(f1_val, 4),
+                        "training_time_s": train_time
+                    }
 
                 if score > best_score:
                     best_score = score
@@ -158,10 +212,26 @@ class MLService:
                 benchmark_results.append({
                     "model_type": m_type,
                     "score": round(score, 4),
-                    "rmse": round(rmse, 4)
+                    "r2_score": round(metrics_dict.get("r2_score", score), 4),
+                    "rmse": round(metrics_dict.get("rmse", 0.0), 4),
+                    "mae": round(metrics_dict.get("mae", 0.0), 4),
+                    "training_time_s": train_time,
+                    "metrics": metrics_dict,
+                    "status": "SUCCESS"
                 })
             except Exception as e:
                 logger.warning(f"AutoML model failure for {m_type}: {e}")
+                benchmark_results.append({
+                    "model_type": m_type,
+                    "score": 0.0,
+                    "r2_score": 0.0,
+                    "rmse": 0.0,
+                    "mae": 0.0,
+                    "training_time_s": 0.0,
+                    "metrics": {},
+                    "status": "FAILED",
+                    "error": str(e)
+                })
 
         return MLCompareResponse(
             target_variable=target_column,

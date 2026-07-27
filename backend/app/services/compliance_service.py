@@ -2,6 +2,7 @@ import uuid
 import hashlib
 import json
 from typing import Dict, Any, List, Optional
+# pyrefly: ignore [missing-import]
 import google.generativeai as genai
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -63,6 +64,22 @@ class ComplianceService:
         Evaluates experiment log against SOP baseline, calculates compliance score,
         generates Gemini CAPA recommendations, and logs SHA-256 Part 11 audit entry.
         """
+        print(f"Received experiment_id: {experiment_id}")
+
+        # Task 5 & 8: Verify Experiment exists in database
+        stmt_exp = select(Experiment).where(Experiment.id == experiment_id)
+        res_exp = await self.session.execute(stmt_exp)
+        experiment = res_exp.scalar_one_or_none()
+
+        experiment_exists = experiment is not None
+        print(f"Experiment exists: {experiment_exists}")
+
+        if not experiment:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No experiment has been created yet."
+            )
+
         sop = await self.upload_and_parse_sop(sop_code, "Active Synthesis Protocol", "v2.1", f"/sops/{sop_code}.pdf")
 
         # Fetch experiment logs
@@ -142,6 +159,8 @@ class ComplianceService:
         self.session.add(audit_entry)
         await self.session.commit()
         await self.session.refresh(report)
+
+        print("Compliance report created successfully.")
 
         return ComplianceVerifyResponse(
             report_id=report.id,

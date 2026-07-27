@@ -1,5 +1,19 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, users, dashboard, papers, analytics, stats, ml, sql, compliance, agents, reports, monitoring
+from app.api.v1.endpoints import (
+    auth,
+    users,
+    dashboard,
+    papers,
+    analytics,
+    stats,
+    ml,
+    sql,
+    compliance,
+    agents,
+    reports,
+    monitoring,
+    experiments,
+)
 
 api_router = APIRouter()
 
@@ -15,3 +29,4 @@ api_router.include_router(compliance.router, prefix="/compliance", tags=["Compli
 api_router.include_router(agents.router, prefix="/agents", tags=["LangGraph Research Assistant"])
 api_router.include_router(reports.router, prefix="/reports", tags=["Report Generation Module"])
 api_router.include_router(monitoring.router, prefix="/monitoring", tags=["Monitoring & MLOps"])
+api_router.include_router(experiments.router, prefix="/experiments", tags=["Experiments"])

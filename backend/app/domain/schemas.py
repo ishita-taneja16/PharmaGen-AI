@@ -34,9 +34,10 @@ class DashboardMetrics(BaseModel):
     total_datasets: int
     total_experiments: int
     total_ml_models: int
-    avg_yield_percentage: float
-    avg_model_r2_score: float
-    overall_compliance_rate: float
+    total_compliance_reports: int
+    avg_yield_percentage: Optional[float] = None
+    avg_model_r2_score: Optional[float] = None
+    overall_compliance_rate: Optional[float] = None
 
 class RecentActivityItem(BaseModel):
     id: str
@@ -48,10 +49,12 @@ class RecentActivityItem(BaseModel):
 
 class DashboardSummaryResponse(BaseModel):
     metrics: DashboardMetrics
-    yield_trend: List[Dict[str, Any]]
-    model_performance: List[Dict[str, Any]]
-    compliance_distribution: Dict[str, int]
-    recent_activity: List[RecentActivityItem]
+    papers_over_time: List[Dict[str, Any]] = []
+    experiments_over_time: List[Dict[str, Any]] = []
+    yield_trend: List[Dict[str, Any]] = []
+    model_performance: List[Dict[str, Any]] = []
+    compliance_distribution: Dict[str, int] = {}
+    recent_activity: List[RecentActivityItem] = []
 
 # --- REPORT SCHEMAS ---
 class ReportGenerateRequest(BaseModel):
@@ -151,7 +154,15 @@ class MLTrainResponse(BaseModel):
     metrics: Dict[str, float]
     cross_val_scores: List[float]
     feature_importance: Dict[str, float]
+    shap_summary: Optional[Dict[str, float]] = {}
     ai_model_interpretation: Optional[str] = None
+
+
+class MLCompareRequest(BaseModel):
+    dataset_id: UUID
+    target_column: str
+    task_type: str = Field(..., description="regression, classification")
+
 
 class MLCompareResponse(BaseModel):
     target_variable: str
@@ -171,6 +182,8 @@ class PredictResponse(BaseModel):
 # --- SQL SCHEMAS ---
 class SQLQueryRequest(BaseModel):
     prompt: str
+    dataset_id: Optional[UUID] = None
+
 
 class SQLQueryResponse(BaseModel):
     generated_sql: str
@@ -180,6 +193,8 @@ class SQLQueryResponse(BaseModel):
     rows: List[List[Any]]
     recommended_chart: Dict[str, Any]
     explanation: str
+    scalar_result: Optional[Dict[str, Any]] = None
+
 
 # --- COMPLIANCE SCHEMAS ---
 class SOPCreate(BaseModel):
@@ -187,9 +202,11 @@ class SOPCreate(BaseModel):
     title: str
     version: str
 
+
 class ComplianceVerifyRequest(BaseModel):
     experiment_id: UUID
     sop_code: str
+
 
 class ComplianceVerifyResponse(BaseModel):
     report_id: UUID
@@ -203,6 +220,7 @@ class ComplianceVerifyResponse(BaseModel):
     audit_log_id: UUID
     payload_hash: str
 
+
 # --- AGENT SCHEMAS ---
 class AgentChatRequest(BaseModel):
     session_id: Optional[UUID] = None
@@ -210,8 +228,27 @@ class AgentChatRequest(BaseModel):
     experiment_id: Optional[UUID] = None
     dataset_id: Optional[UUID] = None
 
+
 class AgentChatResponse(BaseModel):
     session_id: UUID
     response_text: str
     active_agents: List[str]
+    skipped_agents: List[str] = []
+    executed_agent: str = "ResearchAgent"
     artifacts: Dict[str, Any] = {}
+
+class ExperimentCreateRequest(BaseModel):
+    dataset_id: UUID
+    title: str
+    formulation_code: str
+    batch_number: str
+    parameters: Dict[str, Any] = {}
+
+
+class ExperimentLogItem(BaseModel):
+    step_number: int
+    step_description: str
+
+
+class ExperimentLogRequest(BaseModel):
+    logs: list[ExperimentLogItem]

@@ -77,7 +77,7 @@ export const LoginModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Dr. Eleanor Vance"
+                  placeholder="Full Name"
                   required
                   className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-9 pr-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
                 />
@@ -93,7 +93,7 @@ export const LoginModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="scientist@pfizer.com"
+                placeholder="email@company.com"
                 required
                 className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-9 pr-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
               />

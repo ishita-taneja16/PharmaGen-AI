@@ -1,9 +1,13 @@
 import React from 'react';
-import { Dna, ShieldCheck, User as UserIcon, Bell } from 'lucide-react';
+import { Dna, ShieldCheck, Bell, LogOut } from 'lucide-react';
 import { useStore } from '../../store/useStore';
+import { useAuthStore } from '../../store/useAuthStore';
 
 export const Navbar: React.FC = () => {
-  const { user } = useStore();
+  const { user: fallbackUser } = useStore();
+  const { user: authUser, logout } = useAuthStore();
+
+  const user = authUser || fallbackUser;
 
   return (
     <header className="h-16 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-40">
@@ -33,13 +37,22 @@ export const Navbar: React.FC = () => {
 
         <div className="flex items-center gap-3 pl-2">
           <div className="w-8 h-8 rounded-full bg-cyan-950 border border-cyan-500/40 text-cyan-400 flex items-center justify-center font-semibold text-sm">
-            {user?.full_name.charAt(0) || 'D'}
+            {user?.full_name?.charAt(0) || 'D'}
           </div>
           <div className="hidden md:block">
             <p className="text-sm font-medium text-slate-200">{user?.full_name}</p>
             <p className="text-[11px] text-cyan-400 font-mono tracking-tight">{user?.role}</p>
           </div>
         </div>
+
+        <button
+          onClick={logout}
+          title="Sign Out"
+          className="p-2 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-slate-800 transition flex items-center gap-1.5 text-xs font-medium"
+        >
+          <LogOut className="w-4 h-4" />
+          <span className="hidden lg:inline">Logout</span>
+        </button>
       </div>
     </header>
   );

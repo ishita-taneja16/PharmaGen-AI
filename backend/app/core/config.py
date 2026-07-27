@@ -20,8 +20,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://pharmagen:secure_pharma_password_2026@localhost:5432/pharmagen_db"
     
     GEMINI_API_KEY: str = ""
-    EMBEDDING_MODEL: str = "models/text-embedding-004"
-    LLM_MODEL: str = "gemini-1.5-pro"
+    EMBEDDING_MODEL: str = "text-embedding-005"
+    LLM_MODEL: str = "gemini-2.5-flash"
     
     MLFLOW_TRACKING_URI: str = "http://localhost:5000"
     

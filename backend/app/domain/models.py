@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import Optional, List
 from sqlalchemy import String, Text, Integer, Float, Boolean, DateTime, ForeignKey, Enum as SQLEnum, JSON, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+# pyrefly: ignore [missing-import]
 from pgvector.sqlalchemy import Vector
 from app.core.database import Base
 import enum

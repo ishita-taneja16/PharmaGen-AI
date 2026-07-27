@@ -9,7 +9,7 @@ router = APIRouter()
 @router.post("/query", response_model=SQLQueryResponse)
 async def query_text_to_sql(req: SQLQueryRequest, db: AsyncSession = Depends(get_db)):
     sql_service = SQLService(db)
-    return await sql_service.process_natural_language_sql(req.prompt)
+    return await sql_service.process_natural_language_sql(req.prompt, req.dataset_id)
 
 @router.get("/history")
 async def get_sql_query_history():

@@ -1,9 +1,12 @@
 import numpy as np
 import pandas as pd
 from scipy import stats
+# pyrefly: ignore [missing-import]
 import statsmodels.api as sm
+# pyrefly: ignore [missing-import]
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from sklearn.decomposition import PCA
+# pyrefly: ignore [missing-import]
 import google.generativeai as genai
 from typing import Dict, Any, List, Tuple
 from app.core.config import settings

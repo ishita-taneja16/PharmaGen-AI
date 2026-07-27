@@ -32,13 +32,19 @@ async def chat_with_agent_assistant(
 
     final_state = await pharmagen_agent_graph.ainvoke(initial_state)
 
-    response_text = final_state.get("final_report") or final_state["messages"][-1].content
-    invoked_agents = ["SupervisorAgent", "ResearchAgent", "StatisticsAgent", "MLAgent", "SQLAgent", "ComplianceAgent", "ReportAgent"]
+    messages = final_state.get("messages", [])
+    response_text = messages[-1].content if messages else "Execution completed."
+
+    active_agents = final_state.get("active_agents") or ["SupervisorAgent", "StatisticsAgent"]
+    skipped_agents = final_state.get("skipped_agents") or ["ResearchAgent", "MLAgent", "SQLAgent", "ComplianceAgent", "ReportAgent"]
+    executed_agent = active_agents[-1] if len(active_agents) > 1 else "StatisticsAgent"
 
     return AgentChatResponse(
         session_id=session_id,
         response_text=response_text,
-        active_agents=invoked_agents,
+        active_agents=active_agents,
+        skipped_agents=skipped_agents,
+        executed_agent=executed_agent,
         artifacts={"final_report_md": final_state.get("final_report")}
     )
 

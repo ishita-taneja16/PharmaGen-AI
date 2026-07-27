@@ -8,18 +8,35 @@ interface AppState {
   setUser: (user: User | null) => void;
   selectedDatasetId: string | null;
   setSelectedDatasetId: (id: string | null) => void;
+  activeExperimentId: string | null;
+  setActiveExperimentId: (id: string | null) => void;
+  dashboardRefreshKey: number;
+  triggerDashboardRefresh: () => void;
 }
 
 export const useStore = create<AppState>((set) => ({
   activeTab: 'dashboard',
   setActiveTab: (tab) => set({ activeTab: tab }),
-  user: {
-    id: 'usr_01',
-    email: 'scientist@pfizer.com',
-    full_name: 'Dr. Eleanor Vance',
-    role: 'LEAD_RESEARCHER',
-  },
+  user: null,
   setUser: (user) => set({ user }),
-  selectedDatasetId: 'e5f6a7b8-9012-3456-789a-bcdef0123456',
-  setSelectedDatasetId: (id) => set({ selectedDatasetId: id }),
+  selectedDatasetId: localStorage.getItem('pharmagen_selected_dataset_id') || null,
+  setSelectedDatasetId: (id) => {
+    if (id) {
+      localStorage.setItem('pharmagen_selected_dataset_id', id);
+    } else {
+      localStorage.removeItem('pharmagen_selected_dataset_id');
+    }
+    set({ selectedDatasetId: id });
+  },
+  activeExperimentId: localStorage.getItem('pharmagen_active_experiment_id') || null,
+  setActiveExperimentId: (id) => {
+    if (id) {
+      localStorage.setItem('pharmagen_active_experiment_id', id);
+    } else {
+      localStorage.removeItem('pharmagen_active_experiment_id');
+    }
+    set({ activeExperimentId: id });
+  },
+  dashboardRefreshKey: 0,
+  triggerDashboardRefresh: () => set((state) => ({ dashboardRefreshKey: state.dashboardRefreshKey + 1 })),
 }));
