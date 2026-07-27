@@ -145,7 +145,7 @@ flowchart TD
 | **State Management** | Zustand | Lightweight global state handling for dataset ID, active experiment ID, and session tokens. |
 | **Backend API** | FastAPI, Python 3.11, Pydantic v2 | High-performance async endpoints with automatic OpenAPI validation and documentation. |
 | **Database & Vector** | PostgreSQL 16 + `pgvector`, SQLAlchemy 2.0 | Unified relational storage and HNSW vector search for literature embeddings. |
-| **AI & Orchestration** | LangGraph, LangChain, Google Gemini API | Stateful intent-routed multi-agent state machines with LLM inference. |
+| **AI & Orchestration** | LangGraph, LangChain, Google Gemini 2.5 Flash API | Stateful intent-routed multi-agent state machines with LLM inference. |
 | **ML & Statistics** | Scikit-learn, SciPy, StatsModels, XGBoost, CatBoost, LightGBM, SHAP | Comprehensive machine learning pipelines, statistical testing, and model explainability. |
 | **Text-to-SQL Engine** | SQLite, `sqlglot` | Isolated in-memory SQL execution over uploaded CSV data with AST safety validation. |
 | **Security & Auth** | OAuth2 + JWT, Passlib (Bcrypt) | Secure password hashing, token verification, and route protection. |
@@ -255,8 +255,8 @@ DATABASE_URL="postgresql+asyncpg://pharmagen:your_postgres_password@localhost:54
 
 # LLM Configuration
 GEMINI_API_KEY="your_google_gemini_api_key_here"
-EMBEDDING_MODEL="models/text-embedding-004"
-LLM_MODEL="gemini-1.5-pro"
+EMBEDDING_MODEL="text-embedding-005"
+LLM_MODEL="gemini-2.5-flash"
 ```
 
 ---
